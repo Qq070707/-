@@ -20,18 +20,11 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-#include "dma.h"
-#include "usart.h"
 #include "gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 
-#include "remote_control.h"
-#include "bsp_usart.h"
-#include <stdio.h>
-#include <stdarg.h>
-#include "string.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -58,28 +51,126 @@
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 /* USER CODE BEGIN PFP */
-
+void bsp_led_toggle(void);
+void nop_delay_us(uint16_t us);
+void nop_delay_ms(uint16_t ms);
+void user_delay_us(uint16_t ms);
+void user_delay_ms(uint16_t ms);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-const RC_ctrl_t *local_rc_ctrl;
 
-void usart_printf(const char *fmt,...)
+
+/**
+  * @brief          Toggle the red led, green led and blue led 
+  * @param[in]      none
+  * @retval         none
+  */
+/**
+  * @brief          反转红灯，绿灯和蓝灯电平
+  * @param[in]      none
+  * @retval         none
+  */
+void bsp_led_toggle(void)
 {
-    static uint8_t tx_buf[256] = {0};
-    static va_list ap;
-    static uint16_t len;
-    va_start(ap, fmt);
+    HAL_GPIO_TogglePin(LED_R_GPIO_Port, LED_R_Pin);
+    HAL_GPIO_TogglePin(LED_G_GPIO_Port, LED_G_Pin);
+    HAL_GPIO_TogglePin(LED_B_GPIO_Port, LED_B_Pin);
+}
 
-    //return length of string 
-    //返回字符串长度
-    len = vsprintf((char *)tx_buf, fmt, ap);
+/**
+  * @brief          use nop function to wait a time
+  * @param[in]      us: us microseconds
+  * @retval         none
+  */
+/**
+  * @brief          使用nop函数延迟一段时间
+  * @param[in]      us:us微秒
+  * @retval         none
+  */
+void nop_delay_us(uint16_t us)
+{
+    for(; us > 0; us--)
+    {
+        for(uint8_t i = 10; i > 0; i--)
+        {
+            __nop();
+            __nop();
+            __nop();
+            __nop();
+            __nop();
+            __nop();
+            __nop();
+            __nop();
+            __nop();
+            __nop();
+            __nop();
+            __nop();
+            __nop();
+            __nop();
+            __nop();
+        }
+    }
+}
 
-    va_end(ap);
+/**
+  * @brief          use nop_delay_us wait a time
+  * @param[in]      ms: ms milliseconds
+  * @retval         none
+  */
+/**
+  * @brief          使用nop_delay_us函数延迟一段时间
+  * @param[in]      ms:ms毫秒
+  * @retval         none
+  */
+void nop_delay_ms(uint16_t ms)
+{
+    for(; ms > 0; ms--)
+    {
+        nop_delay_us(1000);
+    }
+}
 
-    usart1_tx_dma_enable(tx_buf, len);
 
+
+/**
+  * @brief          use cycle count to wait a time
+  * @param[in]      us: us microseconds
+  * @retval         none
+  */
+/**
+  * @brief          使用循环计数延迟一段时间
+  * @param[in]      us:us微秒
+  * @retval         none
+  */
+void user_delay_us(uint16_t us)
+{
+    for(; us > 0; us--)
+    {
+        for(uint8_t i = 50; i > 0; i--)
+        {
+            ;
+        }
+    }
+}
+
+/**
+  * @brief          use user_delay_us function to wait a time
+  * @param[in]      ms: ms milliseconds
+  * @retval         none
+  */
+/**
+  * @brief          使用user_delay_us函数延迟一段时间
+  * @param[in]      ms:ms毫秒
+  * @retval         none
+  */
+void user_delay_ms(uint16_t ms)
+{
+    for(; ms > 0; ms--)
+    {
+        user_delay_us(1000);
+    }
 }
 
 
@@ -114,13 +205,8 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
-  MX_DMA_Init();
-  MX_USART1_UART_Init();
-  MX_USART3_UART_Init();
   /* USER CODE BEGIN 2 */
-    remote_control_init();
-    usart1_tx_dma_init();
-    local_rc_ctrl = get_remote_control_point();
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -130,27 +216,21 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-        usart_printf(
-"**********\r\n\
-ch0:%d\r\n\
-ch1:%d\r\n\
-ch2:%d\r\n\
-ch3:%d\r\n\
-ch4:%d\r\n\
-s1:%d\r\n\
-s2:%d\r\n\
-mouse_x:%d\r\n\
-mouse_y:%d\r\n\
-press_l:%d\r\n\
-press_r:%d\r\n\
-key:%d\r\n\
-**********\r\n",
-            local_rc_ctrl->rc.ch[0], local_rc_ctrl->rc.ch[1], local_rc_ctrl->rc.ch[2], local_rc_ctrl->rc.ch[3], local_rc_ctrl->rc.ch[4],
-            local_rc_ctrl->rc.s[0], local_rc_ctrl->rc.s[1],
-            local_rc_ctrl->mouse.x, local_rc_ctrl->mouse.y,local_rc_ctrl->mouse.z, local_rc_ctrl->mouse.press_l, local_rc_ctrl->mouse.press_r,
-            local_rc_ctrl->key.v);
+        bsp_led_toggle();
 
-        HAL_Delay(10);
+        //nop delay
+        nop_delay_ms(500);
+
+        bsp_led_toggle();
+
+        //cycle count delay
+        user_delay_ms(500);
+
+        bsp_led_toggle();
+
+        //systick delay
+        HAL_Delay(500);
+
   }
   /* USER CODE END 3 */
 }
