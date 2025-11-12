@@ -20,18 +20,12 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-#include "dma.h"
-#include "usart.h"
+#include "tim.h"
 #include "gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 
-#include "remote_control.h"
-#include "bsp_usart.h"
-#include <stdio.h>
-#include <stdarg.h>
-#include "string.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -59,29 +53,49 @@
 void SystemClock_Config(void);
 /* USER CODE BEGIN PFP */
 
+void bsp_led_toggle(void);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-const RC_ctrl_t *local_rc_ctrl;
 
-void usart_printf(const char *fmt,...)
+/**
+  * @brief          Toggle the red led, green led and blue led 
+  * @param[in]      none
+  * @retval         none
+  */
+/**
+  * @brief          反转红灯，绿灯和蓝灯电平
+  * @param[in]      none
+  * @retval         none
+  */
+void bsp_led_toggle(void)
 {
-    static uint8_t tx_buf[256] = {0};
-    static va_list ap;
-    static uint16_t len;
-    va_start(ap, fmt);
-
-    //return length of string 
-    //返回字符串长度
-    len = vsprintf((char *)tx_buf, fmt, ap);
-
-    va_end(ap);
-
-    usart1_tx_dma_enable(tx_buf, len);
-
+    HAL_GPIO_TogglePin(LED_R_GPIO_Port, LED_R_Pin);
+    HAL_GPIO_TogglePin(LED_G_GPIO_Port, LED_G_Pin);
+    HAL_GPIO_TogglePin(LED_B_GPIO_Port, LED_B_Pin);
 }
 
+
+
+/**
+  * @brief          Period elapsed callback in non-blocking mode
+  * @param[in]      htim TIM handle
+  * @retval         none
+  */
+/**
+  * @brief          定时器周期定时回调
+  * @param[in]      htim:定时器指针
+  * @retval         none
+  */
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+{
+    if(htim == &htim1)
+    {
+      //500ms trigger
+      bsp_led_toggle();
+    }
+}
 
 /* USER CODE END 0 */
 
@@ -114,13 +128,10 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
-  MX_DMA_Init();
-  MX_USART1_UART_Init();
-  MX_USART3_UART_Init();
+  MX_TIM1_Init();
   /* USER CODE BEGIN 2 */
-    remote_control_init();
-    usart1_tx_dma_init();
-    local_rc_ctrl = get_remote_control_point();
+//    HAL_TIM_Base_Start(&htim1);
+    HAL_TIM_Base_Start_IT(&htim1);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -130,27 +141,6 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-        usart_printf(
-"**********\r\n\
-ch0:%d\r\n\
-ch1:%d\r\n\
-ch2:%d\r\n\
-ch3:%d\r\n\
-ch4:%d\r\n\
-s1:%d\r\n\
-s2:%d\r\n\
-mouse_x:%d\r\n\
-mouse_y:%d\r\n\
-press_l:%d\r\n\
-press_r:%d\r\n\
-key:%d\r\n\
-**********\r\n",
-            local_rc_ctrl->rc.ch[0], local_rc_ctrl->rc.ch[1], local_rc_ctrl->rc.ch[2], local_rc_ctrl->rc.ch[3], local_rc_ctrl->rc.ch[4],
-            local_rc_ctrl->rc.s[0], local_rc_ctrl->rc.s[1],
-            local_rc_ctrl->mouse.x, local_rc_ctrl->mouse.y,local_rc_ctrl->mouse.z, local_rc_ctrl->mouse.press_l, local_rc_ctrl->mouse.press_r,
-            local_rc_ctrl->key.v);
-
-        HAL_Delay(10);
   }
   /* USER CODE END 3 */
 }
