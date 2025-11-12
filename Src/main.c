@@ -20,18 +20,11 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-#include "dma.h"
-#include "usart.h"
 #include "gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 
-#include "remote_control.h"
-#include "bsp_usart.h"
-#include <stdio.h>
-#include <stdarg.h>
-#include "string.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -63,25 +56,6 @@ void SystemClock_Config(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-const RC_ctrl_t *local_rc_ctrl;
-
-void usart_printf(const char *fmt,...)
-{
-    static uint8_t tx_buf[256] = {0};
-    static va_list ap;
-    static uint16_t len;
-    va_start(ap, fmt);
-
-    //return length of string 
-    //·µ»Ø×Ö·û´®³¤¶È
-    len = vsprintf((char *)tx_buf, fmt, ap);
-
-    va_end(ap);
-
-    usart1_tx_dma_enable(tx_buf, len);
-
-}
-
 
 /* USER CODE END 0 */
 
@@ -114,13 +88,8 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
-  MX_DMA_Init();
-  MX_USART1_UART_Init();
-  MX_USART3_UART_Init();
   /* USER CODE BEGIN 2 */
-    remote_control_init();
-    usart1_tx_dma_init();
-    local_rc_ctrl = get_remote_control_point();
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -130,27 +99,11 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-        usart_printf(
-"**********\r\n\
-ch0:%d\r\n\
-ch1:%d\r\n\
-ch2:%d\r\n\
-ch3:%d\r\n\
-ch4:%d\r\n\
-s1:%d\r\n\
-s2:%d\r\n\
-mouse_x:%d\r\n\
-mouse_y:%d\r\n\
-press_l:%d\r\n\
-press_r:%d\r\n\
-key:%d\r\n\
-**********\r\n",
-            local_rc_ctrl->rc.ch[0], local_rc_ctrl->rc.ch[1], local_rc_ctrl->rc.ch[2], local_rc_ctrl->rc.ch[3], local_rc_ctrl->rc.ch[4],
-            local_rc_ctrl->rc.s[0], local_rc_ctrl->rc.s[1],
-            local_rc_ctrl->mouse.x, local_rc_ctrl->mouse.y,local_rc_ctrl->mouse.z, local_rc_ctrl->mouse.press_l, local_rc_ctrl->mouse.press_r,
-            local_rc_ctrl->key.v);
-
-        HAL_Delay(10);
+        //set GPIO output high level
+        
+        HAL_GPIO_WritePin(LED_R_GPIO_Port, LED_R_Pin, GPIO_PIN_SET);
+        HAL_GPIO_WritePin(LED_G_GPIO_Port, LED_G_Pin, GPIO_PIN_SET);
+        HAL_GPIO_WritePin(LED_B_GPIO_Port, LED_B_Pin, GPIO_PIN_SET);
   }
   /* USER CODE END 3 */
 }
