@@ -20,18 +20,12 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-#include "dma.h"
 #include "usart.h"
 #include "gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 
-#include "remote_control.h"
-#include "bsp_usart.h"
-#include <stdio.h>
-#include <stdarg.h>
-#include "string.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -63,24 +57,47 @@ void SystemClock_Config(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-const RC_ctrl_t *local_rc_ctrl;
 
-void usart_printf(const char *fmt,...)
+void USART1_IRQHandler(void)  
 {
-    static uint8_t tx_buf[256] = {0};
-    static va_list ap;
-    static uint16_t len;
-    va_start(ap, fmt);
+    volatile uint8_t receive;
+    //receive interrupt 接收中断
+    if(huart1.Instance->SR & UART_FLAG_RXNE)
+    {
+        receive = huart1.Instance->DR;
+        HAL_GPIO_TogglePin(LED_R_GPIO_Port, LED_R_Pin);
 
-    //return length of string 
-    //返回字符串长度
-    len = vsprintf((char *)tx_buf, fmt, ap);
-
-    va_end(ap);
-
-    usart1_tx_dma_enable(tx_buf, len);
+    }
+    //idle interrupt 空闲中断
+    else if(huart1.Instance->SR & UART_FLAG_IDLE)
+    {
+        receive = huart1.Instance->DR;
+        HAL_GPIO_WritePin(LED_R_GPIO_Port, LED_R_Pin, GPIO_PIN_RESET);
+    }
 
 }
+
+void USART6_IRQHandler(void)  
+{
+
+    volatile uint8_t receive;
+    //receive interrupt 接收中断
+    if(huart6.Instance->SR & UART_FLAG_RXNE)
+    {
+        receive = huart6.Instance->DR;
+        HAL_GPIO_TogglePin(LED_G_GPIO_Port, LED_G_Pin);
+
+    }
+    //idle interrupt 空闲中断
+    else if(huart6.Instance->SR & UART_FLAG_IDLE)
+    {
+        receive = huart6.Instance->DR;
+        HAL_GPIO_WritePin(LED_G_GPIO_Port, LED_G_Pin, GPIO_PIN_RESET);
+    }
+
+
+}
+
 
 
 /* USER CODE END 0 */
@@ -114,13 +131,20 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
-  MX_DMA_Init();
   MX_USART1_UART_Init();
-  MX_USART3_UART_Init();
+  MX_USART6_UART_Init();
   /* USER CODE BEGIN 2 */
-    remote_control_init();
-    usart1_tx_dma_init();
-    local_rc_ctrl = get_remote_control_point();
+    
+    HAL_GPIO_WritePin(LED_R_GPIO_Port, LED_R_Pin, GPIO_PIN_RESET);
+    HAL_GPIO_WritePin(LED_G_GPIO_Port, LED_G_Pin, GPIO_PIN_RESET);
+    HAL_GPIO_WritePin(LED_B_GPIO_Port, LED_B_Pin, GPIO_PIN_RESET);
+    //enable receive interrupt and idle interrupt
+    //使能接收中断和空闲中断
+    __HAL_UART_ENABLE_IT(&huart1, UART_IT_RXNE);  //receive interrupt
+    __HAL_UART_ENABLE_IT(&huart1, UART_IT_IDLE);  //idle interrupt
+    __HAL_UART_ENABLE_IT(&huart6, UART_IT_RXNE);  //receive interrupt
+    __HAL_UART_ENABLE_IT(&huart6, UART_IT_IDLE);  //idle interrupt
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -130,27 +154,12 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-        usart_printf(
-"**********\r\n\
-ch0:%d\r\n\
-ch1:%d\r\n\
-ch2:%d\r\n\
-ch3:%d\r\n\
-ch4:%d\r\n\
-s1:%d\r\n\
-s2:%d\r\n\
-mouse_x:%d\r\n\
-mouse_y:%d\r\n\
-press_l:%d\r\n\
-press_r:%d\r\n\
-key:%d\r\n\
-**********\r\n",
-            local_rc_ctrl->rc.ch[0], local_rc_ctrl->rc.ch[1], local_rc_ctrl->rc.ch[2], local_rc_ctrl->rc.ch[3], local_rc_ctrl->rc.ch[4],
-            local_rc_ctrl->rc.s[0], local_rc_ctrl->rc.s[1],
-            local_rc_ctrl->mouse.x, local_rc_ctrl->mouse.y,local_rc_ctrl->mouse.z, local_rc_ctrl->mouse.press_l, local_rc_ctrl->mouse.press_r,
-            local_rc_ctrl->key.v);
-
-        HAL_Delay(10);
+        //send data by usart
+        //串口发送数据
+        HAL_UART_Transmit(&huart1,(uint8_t*)"RoboMaster\r\n", 12, 100);
+        HAL_Delay(100);
+        HAL_UART_Transmit(&huart6,(uint8_t*) "RoboMaster\r\n", 12, 100);
+        HAL_Delay(100);
   }
   /* USER CODE END 3 */
 }
