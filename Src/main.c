@@ -20,18 +20,16 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-#include "dma.h"
-#include "usart.h"
+#include "can.h"
 #include "gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
-#include "remote_control.h"
-#include "bsp_usart.h"
+#include "bsp_can.h"
+#include "CAN_receive.h"
+#include <stdint.h>
 #include <stdio.h>
-#include <stdarg.h>
-#include "string.h"
+#include  "pid.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -41,6 +39,11 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+#define PID_KP  800.0f
+#define PID_KI  0.5f
+#define PID_KD 0.0f
+#define PID_MAX_OUT  10000.0f
+#define PID_MAX_IOUT  9000.0f
 
 /* USER CODE END PD */
 
@@ -52,37 +55,26 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-
+CAN_RxHeaderTypeDef can_rx_header;
+uint8_t can_rx_data[8] = {0};
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
+static void MX_NVIC_Init(void);
 /* USER CODE BEGIN PFP */
-
+void speed_motor_2006_init();
+int16_t speed_motor_2006_loop(int16_t motor_2006_set);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-const RC_ctrl_t *local_rc_ctrl;
+int16_t speed_set = 8000;
+		
+const motor_measure_t*local_trigger;
 
-void usart_printf(const char *fmt,...)
-{
-    static uint8_t tx_buf[256] = {0};
-    static va_list ap;
-    static uint16_t len;
-    va_start(ap, fmt);
-
-    //return length of string 
-    //·µ»Ø×Ö·û´®³¤¶È
-    len = vsprintf((char *)tx_buf, fmt, ap);
-
-    va_end(ap);
-
-    usart1_tx_dma_enable(tx_buf, len);
-
-}
-
-
+pid_type_def motor_2006_pid;
+int16_t motor_2006_given_current=0;
 /* USER CODE END 0 */
 
 /**
@@ -114,13 +106,17 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
-  MX_DMA_Init();
-  MX_USART1_UART_Init();
-  MX_USART3_UART_Init();
+  MX_CAN1_Init();
+  MX_CAN2_Init();
+	
   /* USER CODE BEGIN 2 */
-    remote_control_init();
-    usart1_tx_dma_init();
-    local_rc_ctrl = get_remote_control_point();
+    can_filter_init();
+		
+	
+		
+		 speed_motor_2006_init();
+		 
+		 speed_set=8000;
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -130,27 +126,12 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-        usart_printf(
-"**********\r\n\
-ch0:%d\r\n\
-ch1:%d\r\n\
-ch2:%d\r\n\
-ch3:%d\r\n\
-ch4:%d\r\n\
-s1:%d\r\n\
-s2:%d\r\n\
-mouse_x:%d\r\n\
-mouse_y:%d\r\n\
-press_l:%d\r\n\
-press_r:%d\r\n\
-key:%d\r\n\
-**********\r\n",
-            local_rc_ctrl->rc.ch[0], local_rc_ctrl->rc.ch[1], local_rc_ctrl->rc.ch[2], local_rc_ctrl->rc.ch[3], local_rc_ctrl->rc.ch[4],
-            local_rc_ctrl->rc.s[0], local_rc_ctrl->rc.s[1],
-            local_rc_ctrl->mouse.x, local_rc_ctrl->mouse.y,local_rc_ctrl->mouse.z, local_rc_ctrl->mouse.press_l, local_rc_ctrl->mouse.press_r,
-            local_rc_ctrl->key.v);
 
-        HAL_Delay(10);
+    CAN_cmd_chassis(motor_2006_given_current,motor_2006_given_current,motor_2006_given_current,motor_2006_given_current);
+		motor_2006_given_current = speed_motor_2006_loop(speed_set);
+		
+
+	  HAL_Delay(10);
   }
   /* USER CODE END 3 */
 }
@@ -198,7 +179,17 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
-
+void speed_motor_2006_init()
+{
+  static const fp32 motor_2006_speed_pid[3]={PID_KD,PID_KI,PID_KP};
+	PID_init(&motor_2006_pid,PID_POSITION,motor_2006_speed_pid,PID_MAX_OUT,PID_MAX_IOUT);
+}
+int16_t speed_motor_2006_loop(int16_t motor_2006_speed_set)
+{
+  PID_calc(&motor_2006_pid,local_trigger->speed_rpm,motor_2006_speed_set);
+  int16_t given_current = (int16_t)(motor_2006_pid.out);
+  return  given_current;
+}
 /* USER CODE END 4 */
 
 /**
@@ -209,7 +200,11 @@ void Error_Handler(void)
 {
   /* USER CODE BEGIN Error_Handler_Debug */
   /* User can add his own implementation to report the HAL error return state */
-
+ while (1) 
+	 {
+    HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_0);
+    HAL_Delay(500);
+  }
   /* USER CODE END Error_Handler_Debug */
 }
 
